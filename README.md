@@ -16,15 +16,15 @@ make setup   # build the dev image
 make dev     # http://localhost:5173, hot reload
 ```
 
-| Command          | What it does                                       |
-| ---------------- | -------------------------------------------------- |
-| `make dev`       | Dev server with hot reload on :5173                |
-| `make prod`      | Production bundle behind nginx on :8080            |
-| `make ghcr`      | Run the published image from GHCR                  |
-| `make check`     | Lint, typecheck and tests                          |
-| `make test`      | Unit tests                                         |
-| `make shell`     | Shell inside the dev container                     |
-| `make clean`     | Tear down containers, volumes and build output     |
+| Command      | What it does                                   |
+| ------------ | ---------------------------------------------- |
+| `make dev`   | Dev server with hot reload on :5173            |
+| `make prod`  | Production bundle behind nginx on :8080        |
+| `make ghcr`  | Run the published image from GHCR              |
+| `make check` | Lint, typecheck and tests                      |
+| `make test`  | Unit tests                                     |
+| `make shell` | Shell inside the dev container                 |
+| `make clean` | Tear down containers, volumes and build output |
 
 Ports are overridable: `make dev DEV_PORT=3000`.
 
