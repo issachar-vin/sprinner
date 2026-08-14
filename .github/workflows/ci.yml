@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  # The release workflow tags images straight from package.json, so a PR that
+  # forgets to bump would silently try to republish an existing version.
+  version-bump:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a version bump
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          base=$(git show "origin/${{ github.base_ref }}:package.json" | jq -r .version)
+          head=$(jq -r .version package.json)
+
+          echo "base=$base head=$head"
+
+          if [ "$base" = "$head" ]; then
+            echo "::error::package.json version is still $head. Bump it in this PR."
+            exit 1
+          fi
+
+          lowest=$(printf '%s\n%s\n' "$base" "$head" | sort -V | head -n1)
+          if [ "$lowest" != "$base" ]; then
+            echo "::error::version $head is lower than $base on ${{ github.base_ref }}."
+            exit 1
+          fi

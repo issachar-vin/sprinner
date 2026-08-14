@@ -1,0 +1,9 @@
+# Runs the published image from GHCR instead of building locally.
+#   docker compose -f docker-compose.ghcr.yml up
+# Override the tag with SPRINNER_VERSION=0.2.0 (defaults to the current version).
+services:
+  app:
+    image: ghcr.io/issachar-vin/sprinner:${SPRINNER_VERSION:-0.1.0}
+    ports:
+      - '${PROD_PORT:-8080}:80'
+    restart: unless-stopped

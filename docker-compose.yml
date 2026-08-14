@@ -1,0 +1,23 @@
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    image: sprinner:dev
+    ports:
+      - '${DEV_PORT:-5173}:5173'
+    volumes:
+      - .:/app
+      # Keep the image's node_modules; the bind mount above would otherwise
+      # shadow it with the (possibly empty, possibly wrong-arch) host copy.
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+
+  prod:
+    build:
+      context: .
+      target: prod
+    image: sprinner:prod
+    ports:
+      - '${PROD_PORT:-8080}:80'
