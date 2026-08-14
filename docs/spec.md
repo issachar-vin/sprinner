@@ -10,6 +10,14 @@ property of the grid, never pixel math.
 
 Desktop-only. Single board. Single user. No mobile layout.
 
+**Full-bleed layout is a standing constraint.** Every screen spans the viewport width — no centred
+`max-width` container, in this or any later phase. The board is a horizontally scrolling column
+grid, and a centred column would waste exactly the horizontal room the sprints need. Padding uses
+`clamp()` so it breathes on wide monitors without capping content width.
+
+Colour comes from UKG's brand palette in both light and dark themes — see
+[palette.md](palette.md) for the values, their provenance, and measured contrast.
+
 ## Decisions locked
 
 | #   | Decision                                                                                    |
