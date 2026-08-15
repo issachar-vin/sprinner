@@ -2,6 +2,7 @@ import { DndContext } from '@dnd-kit/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Member, Ticket } from '../model/types';
+import type { BoardActions } from './actions';
 import { Backlog } from './Backlog';
 
 const members: Member[] = [
@@ -42,12 +43,27 @@ const tickets: Ticket[] = [
   },
 ];
 
-const onDelete = vi.fn();
+const actions: BoardActions = {
+  editTicket: vi.fn(),
+  deleteTicket: vi.fn(),
+  unplaceTicket: vi.fn(),
+  resizeTicket: vi.fn(),
+  editSprint: vi.fn(),
+  removeSprint: vi.fn(),
+  addSprint: vi.fn(),
+  setUpSprints: vi.fn(),
+};
 
 function renderBacklog(list: Ticket[] = tickets) {
   return render(
     <DndContext>
-      <Backlog tickets={list} members={members} allTickets={tickets} onDelete={onDelete} />
+      <Backlog
+        tickets={list}
+        members={members}
+        allTickets={tickets}
+        flyingTicketIds={[]}
+        actions={actions}
+      />
     </DndContext>,
   );
 }
@@ -104,7 +120,7 @@ describe('Backlog', () => {
     renderBacklog();
 
     fireEvent.click(screen.getByLabelText('Delete PLAT-2'));
-    expect(onDelete).toHaveBeenCalledWith('t2');
+    expect(actions.deleteTicket).toHaveBeenCalledWith('t2');
   });
 
   it('shows a distinct empty state when nothing is in the backlog', () => {

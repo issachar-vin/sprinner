@@ -14,7 +14,12 @@ export function TicketCard({ ticket, assignee, hue, blockedByKeys, children }: T
   const tint = { '--assignee-hue': hue } as CSSProperties;
 
   return (
-    <article className="ticket" style={tint} data-unassigned={hue === null}>
+    <article
+      className="ticket"
+      style={tint}
+      data-ticket-id={ticket.id}
+      data-unassigned={hue === null}
+    >
       <div className="ticket-top">
         <span className="ticket-key">{ticket.key}</span>
       </div>

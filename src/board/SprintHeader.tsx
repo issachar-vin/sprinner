@@ -1,6 +1,7 @@
 import type { SprintCapacity } from '../lib/capacity';
 import { formatDayMonth } from '../lib/dates';
 import type { Sprint } from '../model/types';
+import { TrashIcon } from './TrashIcon';
 
 type SprintHeaderProps = {
   sprint: Sprint;
@@ -8,20 +9,41 @@ type SprintHeaderProps = {
   number: number;
   capacity: SprintCapacity;
   isCurrent: boolean;
+  onEdit: () => void;
+  onRemove: () => void;
 };
 
 function formatPoints(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-export function SprintHeader({ sprint, number, capacity, isCurrent }: SprintHeaderProps) {
+export function SprintHeader({
+  sprint,
+  number,
+  capacity,
+  isCurrent,
+  onEdit,
+  onRemove,
+}: SprintHeaderProps) {
   const balance = capacity.balance;
 
   return (
     <header className="sprint-header">
       <div className="sprint-title">
-        <h2>{sprint.name ?? `Sprint ${number}`}</h2>
+        <h2>
+          <button type="button" onClick={onEdit} aria-label={`Edit sprint ${number}`}>
+            {sprint.name ?? `Sprint ${number}`}
+          </button>
+        </h2>
         {isCurrent && <span className="today-chip">Today</span>}
+        <button
+          type="button"
+          className="sprint-remove"
+          aria-label={`Remove sprint ${number}`}
+          onClick={onRemove}
+        >
+          <TrashIcon />
+        </button>
       </div>
       <p className="sprint-dates">
         {formatDayMonth(sprint.startDate)} – {formatDayMonth(sprint.endDate)}

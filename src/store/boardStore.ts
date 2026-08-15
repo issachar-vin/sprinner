@@ -3,7 +3,8 @@ import { persist } from 'zustand/middleware';
 import * as mutations from '../lib/mutations';
 import { parseBoard } from '../model/schema';
 import { createEmptyBoard, SCHEMA_VERSION } from '../model/types';
-import type { Board } from '../model/types';
+import type { Board, ISODate, Sprint } from '../model/types';
+import type { SprintEdit, TicketEdit } from '../lib/mutations';
 
 export const STORAGE_KEY = 'sprinner-board';
 /** Deep enough to cover a run of mis-drops without holding the session forever. */
@@ -22,8 +23,15 @@ type BoardState = {
     beforeTicketId: string | null,
   ) => void;
   moveToBacklog: (ticketId: string) => void;
+  clearPlacements: () => void;
   resizeTicket: (ticketId: string, startSprintId: string, span: number) => void;
   deleteTicket: (ticketId: string) => void;
+  updateTicket: (ticketId: string, edit: TicketEdit) => void;
+  updateSprint: (sprintId: string, edit: SprintEdit) => void;
+  addSprint: (today: ISODate) => void;
+  removeSprint: (sprintId: string) => void;
+  replaceSprints: (sprints: Sprint[]) => void;
+  reflowSprints: (fromSprintId: string) => void;
   undo: () => void;
 };
 
@@ -51,9 +59,19 @@ export const useBoardStore = create<BoardState>()(
             mutations.placeTicket(board, ticketId, startSprintId, span, beforeTicketId),
           ),
         moveToBacklog: (ticketId) => apply((board) => mutations.moveToBacklog(board, ticketId)),
+        clearPlacements: () => apply(mutations.clearPlacements),
         resizeTicket: (ticketId, startSprintId, span) =>
           apply((board) => mutations.resizeTicket(board, ticketId, startSprintId, span)),
         deleteTicket: (ticketId) => apply((board) => mutations.deleteTicket(board, ticketId)),
+        updateTicket: (ticketId, edit) =>
+          apply((board) => mutations.updateTicket(board, ticketId, edit)),
+        updateSprint: (sprintId, edit) =>
+          apply((board) => mutations.updateSprint(board, sprintId, edit)),
+        addSprint: (today) => apply((board) => mutations.addSprint(board, today)),
+        removeSprint: (sprintId) => apply((board) => mutations.removeSprint(board, sprintId)),
+        replaceSprints: (sprints) => apply((board) => mutations.replaceSprints(board, sprints)),
+        reflowSprints: (fromSprintId) =>
+          apply((board) => mutations.reflowSprints(board, fromSprintId)),
         undo: () =>
           set((state) => {
             const [previous, ...rest] = state.past;

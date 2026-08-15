@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { act } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDemoBoard } from '../lib/seed';
 import { useBoardStore } from '../store/boardStore';
 import { BoardWorkspace } from './BoardWorkspace';
@@ -25,22 +25,51 @@ describe('BoardWorkspace', () => {
     act(() => useBoardStore.getState().replaceBoard(createDemoBoard('2026-08-14')));
   });
 
-  it('returns a placed ticket to the backlog', () => {
+  it('flies a ticket back to the backlog before unplacing it', async () => {
     render(<BoardWorkspace />);
 
     fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
 
-    expect(ticket('t-101')?.placement).toBeNull();
+    // Mid-flight: still placed, a copy is travelling, and the backlog is
+    // already holding its row open.
+    expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 1 });
+    expect(document.querySelectorAll('.ticket-flight')).toHaveLength(1);
+    expect(document.querySelectorAll('.backlog-list li[data-flying="true"]')).toHaveLength(1);
+    expect(document.querySelector('.board-cell[data-leaving="true"]')).toContainElement(
+      document.querySelector('.board-cell [data-ticket-id="t-101"]'),
+    );
+
+    await waitFor(() => expect(ticket('t-101')?.placement).toBeNull());
+    await waitFor(() => expect(document.querySelectorAll('.ticket-flight')).toHaveLength(0));
+
     const backlog = screen.getByRole('region', { name: 'Backlog' });
     expect(within(backlog).getByText('Rewrite auth token refresh')).toBeInTheDocument();
   });
 
-  it('undoes the last edit with the keyboard shortcut', () => {
+  it('unplaces at once when the viewer asks for reduced motion', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+
+    render(<BoardWorkspace />);
+    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
+
+    expect(ticket('t-101')?.placement).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it('undoes the last edit with the keyboard shortcut', async () => {
     render(<BoardWorkspace />);
 
     fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
-    fireEvent.keyDown(window, { key: 'z', metaKey: true });
+    await waitFor(() => expect(ticket('t-101')?.placement).toBeNull());
 
+    fireEvent.keyDown(window, { key: 'z', metaKey: true });
     expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 1 });
   });
 
