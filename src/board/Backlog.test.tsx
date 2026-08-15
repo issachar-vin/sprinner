@@ -1,5 +1,6 @@
+import { DndContext } from '@dnd-kit/core';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Member, Ticket } from '../model/types';
 import { Backlog } from './Backlog';
 
@@ -41,8 +42,14 @@ const tickets: Ticket[] = [
   },
 ];
 
+const onDelete = vi.fn();
+
 function renderBacklog(list: Ticket[] = tickets) {
-  return render(<Backlog tickets={list} members={members} allTickets={tickets} />);
+  return render(
+    <DndContext>
+      <Backlog tickets={list} members={members} allTickets={tickets} onDelete={onDelete} />
+    </DndContext>,
+  );
 }
 
 describe('Backlog', () => {
@@ -91,6 +98,13 @@ describe('Backlog', () => {
       target: { value: 'nothing matches this' },
     });
     expect(screen.getByText('No tickets match these filters.')).toBeInTheDocument();
+  });
+
+  it('asks to delete a backlog ticket by id', () => {
+    renderBacklog();
+
+    fireEvent.click(screen.getByLabelText('Delete PLAT-2'));
+    expect(onDelete).toHaveBeenCalledWith('t2');
   });
 
   it('shows a distinct empty state when nothing is in the backlog', () => {

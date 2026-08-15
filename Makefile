@@ -25,7 +25,10 @@ setup: ## Build the dev image and install dependencies
 
 .PHONY: dev
 dev: ## Run the dev server with hot reload (http://localhost:$(DEV_PORT))
-	$(COMPOSE) up --build dev
+	# --renew-anon-volumes: compose re-attaches the old anonymous node_modules
+	# volume when it recreates the container, which shadows the freshly built
+	# image and hides any dependency added since the last run.
+	$(COMPOSE) up --build --renew-anon-volumes dev
 
 .PHONY: down
 down: ## Stop and remove containers
