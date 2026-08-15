@@ -18,7 +18,9 @@ type BoardViewProps = {
   board: Board;
   today: ISODate;
   actions: BoardActions;
-  /** Being emptied: its tickets are flying out and cards ending in it pull back. */
+  /** On their way to the backlog: their cards hide behind the flying copies. */
+  leavingTicketIds: readonly string[];
+  /** Being emptied: cards ending in it pull back off it. */
   evacuatingSprintId: string | null;
   /** Emptied already: the column itself is closing. */
   dissolvingSprintId: string | null;
@@ -48,6 +50,7 @@ export function BoardView({
   board,
   today,
   actions,
+  leavingTicketIds,
   evacuatingSprintId,
   dissolvingSprintId,
 }: BoardViewProps) {
@@ -203,7 +206,8 @@ export function BoardView({
               key={row.ticket.id}
               className="board-cell"
               data-leaving={
-                row.ticket.placement?.startSprintId === (evacuatingSprintId ?? dissolvingSprintId)
+                leavingTicketIds.includes(row.ticket.id) ||
+                row.ticket.placement?.startSprintId === dissolvingSprintId
               }
               data-retracting={endsInDoomed(row)}
               data-resizing={preview?.ticketId === row.ticket.id ? preview.edge : undefined}

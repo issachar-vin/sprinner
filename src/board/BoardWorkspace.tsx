@@ -9,11 +9,16 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import type { CollisionDetection, DragEndEvent, DragStartEvent } from '@dnd-kit/core';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { backlogTickets, ticketKeysById } from '../lib/board';
 import { todayISO } from '../lib/dates';
-import { dependentsOf, removalImpact, removeSprint as removeSprintFrom } from '../lib/mutations';
+import {
+  dependentsOf,
+  moveToBacklog as moveToBacklogIn,
+  removalImpact,
+  removeSprint as removeSprintFrom,
+} from '../lib/mutations';
 import { sprintDateIssues } from '../lib/sprints';
 import { useBoardStore } from '../store/boardStore';
 import type { Board } from '../model/types';
@@ -50,13 +55,22 @@ const collisionDetection: CollisionDetection = (args) => {
   return underPointer.length > 0 ? underPointer : closestCenter(args);
 };
 
-type Removal = {
-  sprintId: string;
-  /** `evacuating` empties the column, `dissolving` closes it. */
-  phase: 'evacuating' | 'dissolving';
-  /** The board as it will be, so the backlog can hold the arriving rows open. */
+/**
+ * A change that plays out before it is applied. Both kinds fly tickets to the
+ * rows they will occupy in the backlog, so both need the board as it will be —
+ * the mutations are pure, so computing it ahead of the commit costs nothing.
+ */
+type Pending = {
+  /** Tickets on their way off the board; their cards hide behind the copies. */
+  leaving: string[];
   future: Board;
-};
+} & (
+  | { kind: 'unplace'; ticketId: string }
+  /** `evacuating` empties the column, `dissolving` then closes it. */
+  | { kind: 'sprint'; sprintId: string; phase: 'evacuating' | 'dissolving' }
+);
+
+const EMPTY: string[] = [];
 
 export function BoardWorkspace() {
   const board = useBoardStore((state) => state.board);
@@ -77,9 +91,8 @@ export function BoardWorkspace() {
   const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
   const [editingSprintId, setEditingSprintId] = useState<string | null>(null);
   const [removingSprintId, setRemovingSprintId] = useState<string | null>(null);
-  const [removal, setRemoval] = useState<Removal | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
   const [settingUp, setSettingUp] = useState(false);
-  const removalTimer = useRef<number | null>(null);
   const { flights, lift, land } = useTicketFlight();
 
   const today = todayISO();
@@ -90,17 +103,27 @@ export function BoardWorkspace() {
     useSensor(KeyboardSensor),
   );
 
-  useEffect(() => () => window.clearTimeout(removalTimer.current ?? undefined), []);
+  /** One ticket, straight back to the backlog. */
+  const flyToBacklog = (ticketId: string) => {
+    if (prefersReducedMotion()) {
+      moveToBacklog(ticketId);
+      return;
+    }
+
+    lift([ticketId]);
+    setPending({
+      kind: 'unplace',
+      ticketId,
+      leaving: [ticketId],
+      future: moveToBacklogIn(board, ticketId),
+    });
+  };
 
   /**
    * The column is emptied before it closes. Stage one flies the tickets it
-   * orphans to the rows they will occupy in the backlog and pulls back the
-   * cards that end in it; only once that has played does stage two collapse the
-   * now-empty column and commit the change.
-   *
-   * The flight targets are measurable ahead of the commit because the backlog
-   * is already rendering the board as it will be — `removeSprint` is pure, so
-   * the future list costs nothing to compute.
+   * orphans to the backlog and pulls back the cards that end in it; only once
+   * that has played does stage two collapse the now-empty column. The commit
+   * comes last, so the layout never changes under the animation.
    */
   const dissolveSprint = (sprintId: string) => {
     setRemovingSprintId(null);
@@ -112,28 +135,51 @@ export function BoardWorkspace() {
 
     const orphaned = removalImpact(board, sprintId).unplaced.map((ticket) => ticket.id);
     lift(orphaned);
-    setRemoval({ sprintId, phase: 'evacuating', future: removeSprintFrom(board, sprintId) });
+    setPending({
+      kind: 'sprint',
+      sprintId,
+      phase: 'evacuating',
+      leaving: orphaned,
+      future: removeSprintFrom(board, sprintId),
+    });
   };
 
   /**
-   * Layout effect: the backlog is holding a row open for every arriving ticket,
-   * but nothing has painted yet, so measuring here means the copies never flash
-   * at the wrong place.
+   * Drives whatever is pending to its next step. A layout effect because the
+   * backlog is holding a row open for every arriving ticket but nothing has
+   * painted yet: measuring here means the copies never flash at the wrong place.
    */
   useLayoutEffect(() => {
-    if (removal?.phase !== 'evacuating') return;
+    if (!pending) return;
+    let cancelled = false;
+    const after = (ms: number, step: () => void) => {
+      const timer = window.setTimeout(() => {
+        if (!cancelled) step();
+      }, ms);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
+    };
 
-    land();
-    removalTimer.current = window.setTimeout(() => {
-      setRemoval({ ...removal, phase: 'dissolving' });
-      removalTimer.current = window.setTimeout(() => {
-        removeSprint(removal.sprintId);
-        setRemoval(null);
-      }, SPRINT_DISSOLVE_MS);
-    }, FLIGHT_MS);
-    // Runs once per phase change; `land` and `removeSprint` are stable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [removal?.phase, removal?.sprintId]);
+    if (pending.kind === 'unplace') {
+      land();
+      return after(FLIGHT_MS, () => {
+        moveToBacklog(pending.ticketId);
+        setPending(null);
+      });
+    }
+
+    if (pending.phase === 'evacuating') {
+      land();
+      return after(FLIGHT_MS, () => setPending({ ...pending, phase: 'dissolving' }));
+    }
+
+    return after(SPRINT_DISSOLVE_MS, () => {
+      removeSprint(pending.sprintId);
+      setPending(null);
+    });
+  }, [pending, land, moveToBacklog, removeSprint]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -150,14 +196,16 @@ export function BoardWorkspace() {
     () => ({
       editTicket: setEditingTicketId,
       deleteTicket: setPendingDeleteId,
-      unplaceTicket: moveToBacklog,
+      unplaceTicket: flyToBacklog,
       resizeTicket,
       editSprint: setEditingSprintId,
       removeSprint: setRemovingSprintId,
       addSprint: () => addSprint(today),
       setUpSprints: () => setSettingUp(true),
     }),
-    [moveToBacklog, resizeTicket, addSprint, today],
+    // `flyToBacklog` closes over the current board, which is what it measures.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [board, moveToBacklog, resizeTicket, addSprint, today],
   );
 
   const onDragStart = (event: DragStartEvent) => setDraggingId(String(event.active.id));
@@ -201,7 +249,7 @@ export function BoardWorkspace() {
     >
       <div className="workspace">
         <Backlog
-          tickets={backlogTickets(removal?.future ?? board)}
+          tickets={backlogTickets(pending?.future ?? board)}
           members={board.members}
           allTickets={board.tickets}
           flyingTicketIds={flights.map((flight) => flight.ticketId)}
@@ -211,8 +259,13 @@ export function BoardWorkspace() {
           board={board}
           today={today}
           actions={actions}
-          evacuatingSprintId={removal?.phase === 'evacuating' ? removal.sprintId : null}
-          dissolvingSprintId={removal?.phase === 'dissolving' ? removal.sprintId : null}
+          leavingTicketIds={pending?.leaving ?? EMPTY}
+          evacuatingSprintId={
+            pending?.kind === 'sprint' && pending.phase === 'evacuating' ? pending.sprintId : null
+          }
+          dissolvingSprintId={
+            pending?.kind === 'sprint' && pending.phase === 'dissolving' ? pending.sprintId : null
+          }
         />
       </div>
 

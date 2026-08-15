@@ -71,6 +71,7 @@ function renderBoard(board: Board, today = TODAY) {
         board={board}
         today={today}
         actions={actions}
+        leavingTicketIds={[]}
         evacuatingSprintId={null}
         dissolvingSprintId={null}
       />
