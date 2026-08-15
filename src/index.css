@@ -49,6 +49,25 @@
   --on-highlight: var(--ukg-forest);
   --focus: var(--ukg-teal-600);
 
+  /* Board grid lines read as decoration, so they sit lighter than --border. */
+  --grid-line: var(--ukg-slate-300);
+
+  --ok-bg: #dcf0e4;
+  --ok-fg: #14532d;
+  --warn-bg: #fbf0ce;
+  --warn-fg: #6b4e00;
+  --bad-bg: #fbe0de;
+  --bad-fg: #7f1d1d;
+
+  /*
+   * Assignee colour is a hue supplied per card; the theme owns how saturated
+   * and how light that hue renders, so cards stay legible in both themes.
+   */
+  --assignee-tint-s: 62%;
+  --assignee-tint-l: 93%;
+  --assignee-edge-s: 40%;
+  --assignee-edge-l: 38%;
+
   color-scheme: light dark;
   font-family:
     ui-sans-serif,
@@ -79,6 +98,20 @@
     --highlight: var(--ukg-chartreuse);
     --on-highlight: var(--ukg-forest);
     --focus: var(--ukg-light-teal);
+
+    --grid-line: #6b7578;
+
+    --ok-bg: #17352a;
+    --ok-fg: #8fe3b0;
+    --warn-bg: #3a3016;
+    --warn-fg: #f3d77a;
+    --bad-bg: #3b1f1f;
+    --bad-fg: #f5a9a4;
+
+    --assignee-tint-s: 24%;
+    --assignee-tint-l: 22%;
+    --assignee-edge-s: 45%;
+    --assignee-edge-l: 45%;
   }
 }
 
@@ -95,6 +128,20 @@
   --highlight: var(--ukg-chartreuse);
   --on-highlight: var(--ukg-forest);
   --focus: var(--ukg-light-teal);
+
+  --grid-line: #6b7578;
+
+  --ok-bg: #17352a;
+  --ok-fg: #8fe3b0;
+  --warn-bg: #3a3016;
+  --warn-fg: #f3d77a;
+  --bad-bg: #3b1f1f;
+  --bad-fg: #f5a9a4;
+
+  --assignee-tint-s: 24%;
+  --assignee-tint-l: 22%;
+  --assignee-edge-s: 45%;
+  --assignee-edge-l: 45%;
 }
 
 * {
@@ -184,73 +231,374 @@ h1::after {
   background: var(--primary);
 }
 
-/* Stats --------------------------------------------------------------------- */
+/* Buttons ------------------------------------------------------------------- */
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 1px;
-  margin: 0 0 2rem;
-  background: var(--border);
+button.primary,
+button.secondary {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+button.primary {
+  color: var(--on-primary);
+  background: var(--primary);
+  border: none;
+}
+
+button.primary:hover {
+  background: var(--accent);
+}
+
+button.secondary {
+  color: var(--fg);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0.625rem;
+}
+
+button.secondary:hover {
+  border-color: var(--primary);
+}
+
+.masthead-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Workspace ----------------------------------------------------------------- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.empty-workspace {
+  padding: 3rem 2rem;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 0.75rem;
+}
+
+.empty-workspace h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+}
+
+/* Backlog ------------------------------------------------------------------- */
+
+.backlog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 11rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
   overflow: hidden;
 }
 
-.stats > div {
-  padding: 0.875rem 1rem;
-  background: var(--surface);
+.backlog-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.stats dt {
-  font-size: 0.6875rem;
-  font-weight: 600;
+.backlog-head h2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
 }
 
-.stats dd {
-  margin: 0.25rem 0 0;
-  font-size: 1.5rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--fg);
-}
-
-/* Swatches ------------------------------------------------------------------ */
-
-.swatches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-}
-
-.swatch {
-  flex: 1 1 0;
-  min-width: 7rem;
-  padding: 0.625rem 0.75rem;
-  font-size: 0.6875rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-}
-
-.swatch span {
-  display: block;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.75;
-}
-
-button.primary {
-  padding: 0.5rem 1rem;
-  font: inherit;
+.backlog-count {
+  padding: 0.1rem 0.45rem;
+  font-size: 0.75rem;
   color: var(--on-primary);
   background: var(--primary);
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
+  border-radius: 999px;
 }
 
-button.primary:hover {
-  background: var(--accent);
+.backlog-head input,
+.backlog-head select {
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+}
+
+.backlog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.75rem;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.backlog-empty {
+  padding: 1.5rem 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Board --------------------------------------------------------------------- */
+
+.board {
+  min-width: 0;
+}
+
+.board--empty {
+  padding: 3rem 2rem;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 0.75rem;
+}
+
+.board--empty h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+}
+
+.board-scroll {
+  max-height: calc(100vh - 11rem);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.board-grid {
+  display: grid;
+  min-width: min-content;
+}
+
+/* Adjacent-sibling rules so only the internal grid lines are drawn. */
+.board-column + .board-column,
+.board-head + .board-head {
+  border-left: 1px solid var(--grid-line);
+}
+
+.board-column[data-current='true'] {
+  background: color-mix(in srgb, var(--highlight) 10%, transparent);
+}
+
+.board-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.board-cell {
+  z-index: 1;
+  padding: 0.375rem;
+}
+
+.board-note {
+  padding: 2rem 1rem;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Sprint header ------------------------------------------------------------- */
+
+.sprint-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.sprint-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sprint-title h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.today-chip {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--on-highlight);
+  background: var(--highlight);
+  border-radius: 999px;
+}
+
+.sprint-dates {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.sprint-stats {
+  display: flex;
+  gap: 1rem;
+  margin: 0.15rem 0 0;
+}
+
+.sprint-stats dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.sprint-stats dd {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  margin: 0.1rem 0 0;
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Creep does not reduce the balance, so a sprint full of carryover reads green.
+ * This figure is the only signal that such a sprint is occupied — it is styled
+ * to be read, not skimmed past.
+ */
+.creep {
+  padding: 0.05rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--on-highlight);
+  background: var(--highlight);
+  border-radius: 0.25rem;
+}
+
+.sprint-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.balance {
+  padding: 0.1rem 0.45rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-radius: 999px;
+}
+
+.balance--green {
+  color: var(--ok-fg);
+  background: var(--ok-bg);
+}
+
+.balance--yellow {
+  color: var(--warn-fg);
+  background: var(--warn-bg);
+}
+
+.balance--red {
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+}
+
+.unestimated {
+  color: var(--muted);
+}
+
+/* Ticket card --------------------------------------------------------------- */
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 0.5rem 0.625rem;
+  background: hsl(var(--assignee-hue) var(--assignee-tint-s) var(--assignee-tint-l));
+  border: 1px solid hsl(var(--assignee-hue) var(--assignee-edge-s) var(--assignee-edge-l) / 0.45);
+  border-left: 4px solid hsl(var(--assignee-hue) var(--assignee-edge-s) var(--assignee-edge-l));
+  border-radius: 0.375rem;
+}
+
+.ticket[data-unassigned='true'] {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+}
+
+.ticket-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ticket-key {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.ticket-points {
+  min-width: 1.4rem;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  border-radius: 0.25rem;
+}
+
+.ticket-points--none {
+  color: var(--muted);
+}
+
+.ticket-title {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.ticket-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: auto;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+
+.ticket-blocked {
+  padding: 0.05rem 0.35rem;
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border-radius: 0.25rem;
 }

@@ -28,6 +28,28 @@ export function toISODate(date: Date): ISODate {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Reads local clock fields rather than going through `toISODate`. The today
+ * marker is about the viewer's calendar day, and a UTC conversion reports
+ * tomorrow from mid-afternoon onwards anywhere west of Greenwich.
+ */
+export function todayISO(): ISODate {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+const DAY_MONTH = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
+
+export function formatDayMonth(iso: ISODate): string {
+  return DAY_MONTH.format(parseISODate(iso));
+}
+
 export function addDays(iso: ISODate, days: number): ISODate {
   return toISODate(new Date(parseISODate(iso).getTime() + days * MS_PER_DAY));
 }
