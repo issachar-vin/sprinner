@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Board } from '../model/types';
 import { createEmptyBoard } from '../model/types';
+import type { BoardActions } from './actions';
 import { BoardView } from './BoardView';
 
 const TODAY = '2026-01-21';
@@ -52,12 +53,27 @@ function buildBoard(): Board {
   };
 }
 
-const noop = vi.fn();
+const actions: BoardActions = {
+  editTicket: vi.fn(),
+  deleteTicket: vi.fn(),
+  unplaceTicket: vi.fn(),
+  resizeTicket: vi.fn(),
+  editSprint: vi.fn(),
+  removeSprint: vi.fn(),
+  addSprint: vi.fn(),
+  setUpSprints: vi.fn(),
+};
 
 function renderBoard(board: Board, today = TODAY) {
   return render(
     <DndContext>
-      <BoardView board={board} today={today} onUnplace={noop} onDelete={noop} onResize={noop} />
+      <BoardView
+        board={board}
+        today={today}
+        actions={actions}
+        evacuatingSprintId={null}
+        dissolvingSprintId={null}
+      />
     </DndContext>,
   );
 }

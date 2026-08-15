@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ResizeDrag } from './useSpanResize';
-import { columnIndexAt, snapToColumn } from './useSpanResize';
+import { columnIndexAt, snapToColumn, stretchBounds } from './useSpanResize';
 
 function rect(left: number, right: number): DOMRect {
   return { left, right, width: right - left } as DOMRect;
@@ -34,6 +34,8 @@ describe('snapToColumn', () => {
     endIndex: 1,
     originX: 150,
     columns,
+    minDelta: -1000,
+    maxDelta: 1000,
     ...over,
   });
 
@@ -59,5 +61,29 @@ describe('snapToColumn', () => {
         span: 1,
       },
     );
+  });
+});
+
+describe('stretchBounds', () => {
+  const card = (left: number, right: number) => ({ left, right, width: right - left }) as DOMRect;
+
+  it('stops the right edge at the last column', () => {
+    const bounds = stretchBounds('end', card(100, 200), columns);
+    expect(bounds.maxDelta).toBe(100);
+  });
+
+  it('stops the left edge at the first column', () => {
+    const bounds = stretchBounds('start', card(100, 200), columns);
+    expect(bounds.minDelta).toBe(-100);
+  });
+
+  it('never lets a card shrink away entirely', () => {
+    expect(stretchBounds('end', card(100, 200), columns).minDelta).toBe(-52);
+    expect(stretchBounds('start', card(100, 200), columns).maxDelta).toBe(52);
+  });
+
+  it('gives no room when the card already fills the board', () => {
+    expect(stretchBounds('end', card(0, 300), columns).maxDelta).toBe(0);
+    expect(stretchBounds('start', card(0, 300), columns).minDelta).toBe(0);
   });
 });

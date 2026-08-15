@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { BoardWorkspace } from './board/BoardWorkspace';
+import { ConfirmDialog } from './board/ConfirmDialog';
 import { backlogTickets } from './lib/board';
 import { createDemoBoard } from './lib/seed';
 import { useBoardStore } from './store/boardStore';
@@ -7,7 +9,10 @@ import { ThemeToggle } from './theme/ThemeToggle';
 export default function App() {
   const board = useBoardStore((state) => state.board);
   const replaceBoard = useBoardStore((state) => state.replaceBoard);
+  const clearPlacements = useBoardStore((state) => state.clearPlacements);
   const resetBoard = useBoardStore((state) => state.resetBoard);
+
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   const backlog = backlogTickets(board);
   const planned = board.tickets.length - backlog.length;
@@ -33,24 +38,40 @@ export default function App() {
               Load demo board
             </button>
           ) : (
-            <button type="button" className="secondary" onClick={resetBoard}>
-              Clear board
-            </button>
+            <>
+              <button type="button" className="secondary" onClick={clearPlacements}>
+                Clear board
+              </button>
+              <button type="button" className="secondary" onClick={() => setConfirmingReset(true)}>
+                Reset board
+              </button>
+            </>
           )}
           <ThemeToggle />
         </div>
       </header>
 
-      {isEmpty ? (
-        <section className="empty-workspace">
-          <h2>Nothing to plan yet</h2>
-          <p className="muted">
-            Import arrives in a later phase. Load the demo board to see sprints, capacity and the
-            backlog.
-          </p>
-        </section>
-      ) : (
-        <BoardWorkspace />
+      <BoardWorkspace />
+
+      {confirmingReset && (
+        <ConfirmDialog
+          title="Reset the board?"
+          body={
+            <>
+              <p>Every sprint, ticket and member is discarded and the board goes back to empty.</p>
+              <p className="dialog-warning">
+                This cannot be undone — the undo history goes with it. To only empty the columns,
+                use Clear board instead.
+              </p>
+            </>
+          }
+          confirmLabel="Reset board"
+          onConfirm={() => {
+            resetBoard();
+            setConfirmingReset(false);
+          }}
+          onCancel={() => setConfirmingReset(false)}
+        />
       )}
     </div>
   );

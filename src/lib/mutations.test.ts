@@ -2,7 +2,21 @@ import { describe, expect, it } from 'vitest';
 import type { Board, Ticket } from '../model/types';
 import { createEmptyBoard } from '../model/types';
 import { boardRows } from './board';
-import { deleteTicket, dependentsOf, moveToBacklog, placeTicket, resizeTicket } from './mutations';
+import {
+  addSprint,
+  clearPlacements,
+  deleteTicket,
+  dependentsOf,
+  moveToBacklog,
+  placeTicket,
+  removalImpact,
+  removeSprint,
+  replaceSprints,
+  reflowSprints,
+  resizeTicket,
+  updateSprint,
+  updateTicket,
+} from './mutations';
 
 function ticket(overrides: Partial<Ticket> & Pick<Ticket, 'id'>): Ticket {
   return {
@@ -126,5 +140,155 @@ describe('deleteTicket', () => {
   it('strips the id from every blockedBy so no dangling reference is left', () => {
     const next = deleteTicket(buildBoard(), 'a');
     expect(next.tickets.find((t) => t.id === 'c')?.blockedBy).toEqual([]);
+  });
+});
+
+describe('updateTicket', () => {
+  it('replaces the editable fields and leaves placement alone', () => {
+    const next = updateTicket(buildBoard(), 'a', {
+      key: 'NEW-1',
+      title: 'Renamed',
+      points: 8,
+      assigneeId: 'm1',
+      blockedBy: ['b'],
+      epicKey: 'EPIC-1',
+    });
+
+    const ticket = next.tickets.find((t) => t.id === 'a');
+    expect(ticket).toMatchObject({
+      key: 'NEW-1',
+      title: 'Renamed',
+      points: 8,
+      assigneeId: 'm1',
+      blockedBy: ['b'],
+      epicKey: 'EPIC-1',
+      placement: { startSprintId: 's1', span: 1 },
+    });
+    expect(next.rowOrder).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('updateSprint', () => {
+  it('changes only the sprint asked for', () => {
+    const next = updateSprint(buildBoard(), 's2', {
+      name: 'Hardening',
+      startDate: '2026-01-20',
+      endDate: '2026-01-31',
+    });
+
+    expect(next.sprints[1]).toMatchObject({
+      id: 's2',
+      name: 'Hardening',
+      startDate: '2026-01-20',
+      endDate: '2026-01-31',
+    });
+    expect(next.sprints[0]).toEqual(buildBoard().sprints[0]);
+  });
+});
+
+describe('addSprint', () => {
+  it('appends a sprint that starts the day after the last one ends', () => {
+    const next = addSprint(buildBoard(), '2026-06-01');
+
+    expect(next.sprints).toHaveLength(4);
+    expect(next.sprints[3]?.startDate).toBe('2026-02-14');
+  });
+});
+
+describe('replaceSprints', () => {
+  it('swaps the whole set and keeps tickets', () => {
+    const board = buildBoard();
+    const next = replaceSprints(board, [
+      { id: 'x1', name: null, startDate: '2026-03-02', endDate: '2026-03-15' },
+    ]);
+
+    expect(next.sprints).toHaveLength(1);
+    expect(next.tickets).toEqual(board.tickets);
+  });
+});
+
+describe('reflowSprints', () => {
+  it('closes the gap after the given sprint', () => {
+    const board = updateSprint(buildBoard(), 's1', {
+      name: null,
+      startDate: '2026-01-05',
+      endDate: '2026-01-09',
+    });
+
+    const next = reflowSprints(board, 's1');
+    expect(next.sprints[1]?.startDate).toBe('2026-01-10');
+    expect(next.sprints[2]?.startDate).toBe('2026-01-22');
+  });
+
+  it('ignores an unknown sprint', () => {
+    const board = buildBoard();
+    expect(reflowSprints(board, 'nope')).toBe(board);
+  });
+});
+
+describe('removalImpact', () => {
+  it('separates tickets that lose their start sprint from those that only span it', () => {
+    const board = resizeTicket(buildBoard(), 'a', 's1', 3);
+    const impact = removalImpact(board, 's2');
+
+    expect(impact.unplaced.map((t) => t.id)).toEqual(['b']);
+    expect(impact.clipped.map((t) => t.id)).toEqual(['a']);
+  });
+
+  it('is empty for an unknown sprint', () => {
+    expect(removalImpact(buildBoard(), 'nope')).toEqual({ unplaced: [], clipped: [] });
+  });
+});
+
+describe('removeSprint', () => {
+  it('returns tickets that started there to the backlog', () => {
+    const next = removeSprint(buildBoard(), 's2');
+
+    expect(next.sprints.map((s) => s.id)).toEqual(['s1', 's3']);
+    expect(next.tickets.find((t) => t.id === 'b')?.placement).toBeNull();
+  });
+
+  it('clips a span that crossed the removed sprint', () => {
+    const board = resizeTicket(buildBoard(), 'a', 's1', 3);
+    const next = removeSprint(board, 's2');
+
+    expect(next.tickets.find((t) => t.id === 'a')?.placement).toEqual({
+      startSprintId: 's1',
+      span: 2,
+    });
+  });
+
+  it('leaves a span that ends before the removed sprint alone', () => {
+    const next = removeSprint(buildBoard(), 's3');
+    expect(next.tickets.find((t) => t.id === 'a')?.placement).toEqual({
+      startSprintId: 's1',
+      span: 1,
+    });
+  });
+
+  it('ignores an unknown sprint', () => {
+    const board = buildBoard();
+    expect(removeSprint(board, 'nope')).toBe(board);
+  });
+
+  it('keeps row order so an unplaced ticket stays where it was', () => {
+    expect(removeSprint(buildBoard(), 's2').rowOrder).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('clearPlacements', () => {
+  it('returns every placed ticket to the backlog and keeps the rest', () => {
+    const board = buildBoard();
+    const next = clearPlacements(board);
+
+    expect(next.tickets.every((ticket) => ticket.placement === null)).toBe(true);
+    expect(next.sprints).toEqual(board.sprints);
+    expect(next.rowOrder).toEqual(board.rowOrder);
+    expect(next.tickets.map((t) => t.id)).toEqual(board.tickets.map((t) => t.id));
+  });
+
+  it('leaves an already empty board untouched', () => {
+    const empty = clearPlacements(buildBoard());
+    expect(clearPlacements(empty)).toBe(empty);
   });
 });

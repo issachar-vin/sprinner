@@ -2,9 +2,11 @@ import { useDroppable } from '@dnd-kit/core';
 import { useId, useState } from 'react';
 import { ALL_ASSIGNEES, filterTickets, ticketKeysById, UNASSIGNED } from '../lib/board';
 import type { Member, Ticket } from '../model/types';
+import type { BoardActions } from './actions';
 import { assigneeHue, assigneeName } from './assignee';
 import { DraggableTicket } from './DraggableTicket';
 import { BACKLOG_DROP_ID } from './dropTarget';
+import { PencilIcon } from './PencilIcon';
 import { TrashIcon } from './TrashIcon';
 
 type BacklogProps = {
@@ -12,10 +14,12 @@ type BacklogProps = {
   members: Member[];
   /** Every ticket on the board, so blocker keys resolve outside the backlog. */
   allTickets: Ticket[];
-  onDelete: (ticketId: string) => void;
+  /** Mid-flight from the board; their row is held open until they land. */
+  flyingTicketIds: readonly string[];
+  actions: BoardActions;
 };
 
-export function Backlog({ tickets, members, allTickets, onDelete }: BacklogProps) {
+export function Backlog({ tickets, members, allTickets, flyingTicketIds, actions }: BacklogProps) {
   const [query, setQuery] = useState('');
   const [assignee, setAssignee] = useState(ALL_ASSIGNEES);
   const searchId = useId();
@@ -68,7 +72,7 @@ export function Backlog({ tickets, members, allTickets, onDelete }: BacklogProps
       ) : (
         <ul className="backlog-list">
           {visible.map((ticket) => (
-            <li key={ticket.id}>
+            <li key={ticket.id} data-flying={flyingTicketIds.includes(ticket.id)}>
               <DraggableTicket
                 ticket={ticket}
                 assignee={assigneeName(members, ticket.assigneeId)}
@@ -78,8 +82,15 @@ export function Backlog({ tickets, members, allTickets, onDelete }: BacklogProps
                 <div className="ticket-actions">
                   <button
                     type="button"
+                    aria-label={`Edit ${ticket.key}`}
+                    onClick={() => actions.editTicket(ticket.id)}
+                  >
+                    <PencilIcon />
+                  </button>
+                  <button
+                    type="button"
                     aria-label={`Delete ${ticket.key}`}
-                    onClick={() => onDelete(ticket.id)}
+                    onClick={() => actions.deleteTicket(ticket.id)}
                   >
                     <TrashIcon />
                   </button>

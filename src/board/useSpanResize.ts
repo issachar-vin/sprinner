@@ -21,7 +21,33 @@ export type ResizeDrag = Span & {
   endIndex: number;
   originX: number;
   columns: DOMRect[];
+  /** How far the card may stretch before it leaves the board. */
+  minDelta: number;
+  maxDelta: number;
 };
+
+/** A card never shrinks below this, whichever edge is being dragged. */
+const MIN_CARD_WIDTH = 48;
+
+/**
+ * The stretch is bounded by the board itself. Beyond it the card would overhang
+ * the grid, which grows the scroll container and flickers a scrollbar in and
+ * out mid-drag — and it would preview a span that the snap cannot produce.
+ */
+export function stretchBounds(
+  edge: ResizeEdge,
+  card: DOMRect,
+  columns: readonly DOMRect[],
+): { minDelta: number; maxDelta: number } {
+  const first = columns[0];
+  const last = columns[columns.length - 1];
+  const room = Math.max(card.width - MIN_CARD_WIDTH, 0);
+
+  if (edge === 'end') {
+    return { minDelta: -room, maxDelta: last ? Math.max(last.right - card.right, 0) : 0 };
+  }
+  return { minDelta: first ? Math.min(first.left - card.left, 0) : 0, maxDelta: room };
+}
 
 /** Nearest column to `x`, clamped to the grid rather than returning nothing. */
 export function columnIndexAt(columns: readonly DOMRect[], x: number): number {
@@ -40,6 +66,10 @@ export function columnIndexAt(columns: readonly DOMRect[], x: number): number {
   }
 
   return nearest;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 /** Whole sprints only — the release lands on the column under the pointer. */
@@ -82,6 +112,9 @@ export function useSpanResize(
       const columns = Array.from(
         gridRef.current?.querySelectorAll('[data-column-index]') ?? [],
       ).map((column) => column.getBoundingClientRect());
+      // The handle is a few pixels wide; the bounds belong to the cell it sits on.
+      const cell = event.currentTarget.closest('.board-cell') ?? event.currentTarget;
+      const card = cell.getBoundingClientRect();
 
       drag.current = {
         ticketId,
@@ -91,13 +124,15 @@ export function useSpanResize(
         endIndex: startIndex + span - 1,
         originX: event.clientX,
         columns,
+        ...stretchBounds(edge, card, columns),
       };
       setPreview({ ticketId, edge, delta: 0 });
 
       const onMove = (moveEvent: PointerEvent) => {
         const current = drag.current;
         if (!current) return;
-        setPreview({ ticketId, edge, delta: moveEvent.clientX - current.originX });
+        const travel = moveEvent.clientX - current.originX;
+        setPreview({ ticketId, edge, delta: clamp(travel, current.minDelta, current.maxDelta) });
       };
 
       const onUp = (upEvent: PointerEvent) => {
