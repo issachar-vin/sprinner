@@ -1,27 +1,32 @@
+import { useDroppable } from '@dnd-kit/core';
 import { useId, useState } from 'react';
 import { ALL_ASSIGNEES, filterTickets, ticketKeysById, UNASSIGNED } from '../lib/board';
 import type { Member, Ticket } from '../model/types';
 import { assigneeHue, assigneeName } from './assignee';
-import { TicketCard } from './TicketCard';
+import { DraggableTicket } from './DraggableTicket';
+import { BACKLOG_DROP_ID } from './dropTarget';
+import { TrashIcon } from './TrashIcon';
 
 type BacklogProps = {
   tickets: Ticket[];
   members: Member[];
   /** Every ticket on the board, so blocker keys resolve outside the backlog. */
   allTickets: Ticket[];
+  onDelete: (ticketId: string) => void;
 };
 
-export function Backlog({ tickets, members, allTickets }: BacklogProps) {
+export function Backlog({ tickets, members, allTickets, onDelete }: BacklogProps) {
   const [query, setQuery] = useState('');
   const [assignee, setAssignee] = useState(ALL_ASSIGNEES);
   const searchId = useId();
   const filterId = useId();
+  const { setNodeRef, isOver } = useDroppable({ id: BACKLOG_DROP_ID });
 
   const keys = ticketKeysById(allTickets);
   const visible = filterTickets(tickets, query, assignee);
 
   return (
-    <section className="backlog" aria-label="Backlog">
+    <section className="backlog" aria-label="Backlog" ref={setNodeRef} data-over={isOver}>
       <div className="backlog-head">
         <h2>
           Backlog <span className="backlog-count">{tickets.length}</span>
@@ -64,12 +69,22 @@ export function Backlog({ tickets, members, allTickets }: BacklogProps) {
         <ul className="backlog-list">
           {visible.map((ticket) => (
             <li key={ticket.id}>
-              <TicketCard
+              <DraggableTicket
                 ticket={ticket}
                 assignee={assigneeName(members, ticket.assigneeId)}
                 hue={assigneeHue(members, ticket.assigneeId)}
                 blockedByKeys={ticket.blockedBy.map((id) => keys.get(id) ?? id)}
-              />
+              >
+                <div className="ticket-actions">
+                  <button
+                    type="button"
+                    aria-label={`Delete ${ticket.key}`}
+                    onClick={() => onDelete(ticket.id)}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </DraggableTicket>
             </li>
           ))}
         </ul>

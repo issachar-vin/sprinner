@@ -1,7 +1,5 @@
-import { Backlog } from './board/Backlog';
-import { BoardView } from './board/BoardView';
+import { BoardWorkspace } from './board/BoardWorkspace';
 import { backlogTickets } from './lib/board';
-import { todayISO } from './lib/dates';
 import { createDemoBoard } from './lib/seed';
 import { useBoardStore } from './store/boardStore';
 import { ThemeToggle } from './theme/ThemeToggle';
@@ -52,10 +50,7 @@ export default function App() {
           </p>
         </section>
       ) : (
-        <div className="workspace">
-          <Backlog tickets={backlog} members={board.members} allTickets={board.tickets} />
-          <BoardView board={board} today={todayISO()} />
-        </div>
+        <BoardWorkspace />
       )}
     </div>
   );

@@ -1,5 +1,6 @@
+import { DndContext } from '@dnd-kit/core';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Board } from '../model/types';
 import { createEmptyBoard } from '../model/types';
 import { BoardView } from './BoardView';
@@ -51,9 +52,19 @@ function buildBoard(): Board {
   };
 }
 
+const noop = vi.fn();
+
+function renderBoard(board: Board, today = TODAY) {
+  return render(
+    <DndContext>
+      <BoardView board={board} today={today} onUnplace={noop} onDelete={noop} onResize={noop} />
+    </DndContext>,
+  );
+}
+
 describe('BoardView', () => {
   it('numbers sprints by position and falls back to a name when set', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     expect(screen.getByRole('heading', { name: 'Sprint 1' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Sprint 2' })).toBeInTheDocument();
@@ -61,12 +72,12 @@ describe('BoardView', () => {
   });
 
   it('renders the sprint date range', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
     expect(screen.getByText('Jan 5 – Jan 16')).toBeInTheDocument();
   });
 
   it('marks only the sprint containing today', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     const chips = screen.getAllByText('Today');
     expect(chips).toHaveLength(1);
@@ -74,7 +85,7 @@ describe('BoardView', () => {
   });
 
   it('shows committed points, creep and the unestimated count', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     const second = screen.getByRole('heading', { name: 'Sprint 2' }).closest('.sprint-header');
     expect(second).not.toBeNull();
@@ -84,7 +95,7 @@ describe('BoardView', () => {
   });
 
   it('colours the balance chip from the thresholds', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     // 10 workdays for one member, 3 points committed.
     expect(screen.getByText('+7 balance')).toHaveClass('balance--green');
@@ -92,8 +103,13 @@ describe('BoardView', () => {
     expect(screen.getByText('+2 balance')).toHaveClass('balance--yellow');
   });
 
+  it('keeps column structure once something is planned', () => {
+    renderBoard(buildBoard());
+    expect(document.querySelector('.board-grid')).not.toHaveAttribute('data-empty');
+  });
+
   it('places cards with grid spans rather than pixel maths', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     const cell = screen.getByText('Rewrite auth token refresh').closest('.board-cell');
     expect(cell?.getAttribute('style')).toContain('grid-column: 1 / span 2');
@@ -101,7 +117,7 @@ describe('BoardView', () => {
   });
 
   it('renders every ticket field', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     const card = screen.getByText('Audit log pipeline').closest('.ticket') as HTMLElement;
     expect(within(card).getByText('PLAT-2')).toBeInTheDocument();
@@ -110,21 +126,34 @@ describe('BoardView', () => {
     expect(within(card).getByText('Blocked by PLAT-1')).toBeInTheDocument();
   });
 
+  it('shows points in the card footer', () => {
+    renderBoard(buildBoard());
+
+    const card = screen.getByText('Audit log pipeline').closest('.ticket') as HTMLElement;
+    expect(within(card).getByText('8').closest('.ticket-foot')).not.toBeNull();
+  });
+
   it('marks an unestimated ticket instead of showing zero', () => {
-    render(<BoardView board={buildBoard()} today={TODAY} />);
+    renderBoard(buildBoard());
 
     const card = screen.getByText('Scheduler dead-letter queue').closest('.ticket') as HTMLElement;
     expect(within(card).getByTitle('Unestimated')).toHaveTextContent('—');
   });
 
   it('shows an empty state when the board has no sprints', () => {
-    render(<BoardView board={createEmptyBoard()} today={TODAY} />);
+    renderBoard(createEmptyBoard());
     expect(screen.getByText('No sprints yet')).toBeInTheDocument();
   });
 
   it('notes when sprints exist but nothing is planned', () => {
-    const board = { ...buildBoard(), tickets: [], rowOrder: [] };
-    render(<BoardView board={board} today={TODAY} />);
-    expect(screen.getByText(/every ticket is in the backlog/i)).toBeInTheDocument();
+    renderBoard({ ...buildBoard(), tickets: [], rowOrder: [] });
+
+    const note = screen.getByText(/drag a ticket from the backlog/i);
+    // Inside the grid's only row, so an empty board shows no blank band above it.
+    expect(note.parentElement).toHaveClass('board-grid');
+    // Drives the CSS that hides the column dividers across an empty row.
+    expect(note.parentElement).toHaveAttribute('data-empty', 'true');
+    expect(note.getAttribute('style')).toContain('grid-row: 2');
+    expect(document.querySelectorAll('.board-cell')).toHaveLength(0);
   });
 });

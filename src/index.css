@@ -397,6 +397,15 @@ button.secondary:hover {
   min-width: min-content;
 }
 
+/*
+ * An empty board is just the message — the headers keep their own dividers,
+ * but nothing draws column structure across a row with no tickets in it.
+ */
+.board-grid[data-empty='true'] .board-column {
+  border-left: none;
+  background: none;
+}
+
 /* Adjacent-sibling rules so only the internal grid lines are drawn. */
 .board-column + .board-column,
 .board-head + .board-head {
@@ -420,10 +429,28 @@ button.secondary:hover {
   padding: 0.375rem;
 }
 
+.board-drop {
+  margin: 0.25rem;
+  border-radius: 0.375rem;
+}
+
+.board-drop[data-over='true'] {
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+}
+
+/*
+ * Occupies the single drop row on an empty board rather than sitting under an
+ * otherwise blank band. The drop cells stay behind it, so each column is still
+ * a target.
+ */
 .board-note {
-  padding: 2rem 1rem;
+  place-self: center;
+  padding: 1rem;
   font-size: 0.875rem;
   text-align: center;
+  pointer-events: none;
 }
 
 /* Sprint header ------------------------------------------------------------- */
@@ -534,7 +561,32 @@ button.secondary:hover {
 
 /* Ticket card --------------------------------------------------------------- */
 
+/* Free-form stretch while a resize is in flight; the snap happens on release. */
+.board-cell[data-resizing] {
+  z-index: 3;
+}
+
+.board-cell[data-resizing='end'] {
+  width: max(3rem, calc(100% + var(--stretch)));
+}
+
+.board-cell[data-resizing='start'] {
+  margin-left: var(--stretch);
+  width: max(3rem, calc(100% - var(--stretch)));
+}
+
+.draggable {
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.draggable[data-dragging='true'] {
+  opacity: 0.4;
+}
+
 .ticket {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -567,6 +619,8 @@ button.secondary:hover {
 
 .ticket-points {
   min-width: 1.4rem;
+  /* Bottom-right of the card: last in the footer, pushed to the far edge. */
+  margin-left: auto;
   padding: 0.05rem 0.3rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -601,4 +655,118 @@ button.secondary:hover {
   color: var(--bad-fg);
   background: var(--bad-bg);
   border-radius: 0.25rem;
+}
+
+/* Card actions and resize handles ------------------------------------------- */
+
+.ticket-actions {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.ticket-actions button {
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.ticket-actions button:hover {
+  color: var(--bad-fg);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.5rem;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resize-handle--start {
+  left: -0.25rem;
+}
+
+.resize-handle--end {
+  right: -0.25rem;
+}
+
+.ticket:hover .resize-handle {
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: 0.25rem;
+}
+
+/* Dialog -------------------------------------------------------------------- */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.dialog {
+  width: min(28rem, 100%);
+  padding: 1.25rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+}
+
+.dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.0625rem;
+}
+
+.dialog-body p {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.dialog-warning {
+  padding: 0.5rem 0.625rem;
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border-radius: 0.375rem;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+button.danger {
+  padding: 0.5rem 1rem;
+  font: inherit;
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border: 1px solid var(--bad-fg);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.backlog[data-over='true'] {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
 }
