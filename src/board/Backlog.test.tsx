@@ -52,6 +52,7 @@ const actions: BoardActions = {
   removeSprint: vi.fn(),
   addSprint: vi.fn(),
   setUpSprints: vi.fn(),
+  openCapacity: vi.fn(),
 };
 
 function renderBacklog(list: Ticket[] = tickets) {

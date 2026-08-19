@@ -3,17 +3,22 @@ import type { Board, Ticket } from '../model/types';
 import { createEmptyBoard } from '../model/types';
 import { boardRows } from './board';
 import {
+  addMember,
   addSprint,
+  addTimeOff,
   clearPlacements,
   deleteTicket,
-  dependentsOf,
   moveToBacklog,
   placeTicket,
   removalImpact,
+  removeMember,
   removeSprint,
+  removeTimeOff,
+  renameMember,
   replaceSprints,
   reflowSprints,
   resizeTicket,
+  updateSettings,
   updateSprint,
   updateTicket,
 } from './mutations';
@@ -120,13 +125,6 @@ describe('moveToBacklog', () => {
     const next = moveToBacklog(buildBoard(), 'b');
     expect(next.tickets.find((t) => t.id === 'b')?.placement).toBeNull();
     expect(next.rowOrder).toEqual(['a', 'b', 'c']);
-  });
-});
-
-describe('dependentsOf', () => {
-  it('names the tickets blocked by the given ticket', () => {
-    expect(dependentsOf(buildBoard(), 'a').map((t) => t.id)).toEqual(['c']);
-    expect(dependentsOf(buildBoard(), 'b')).toEqual([]);
   });
 });
 
@@ -290,5 +288,73 @@ describe('clearPlacements', () => {
   it('leaves an already empty board untouched', () => {
     const empty = clearPlacements(buildBoard());
     expect(clearPlacements(empty)).toBe(empty);
+  });
+});
+
+describe('roster', () => {
+  it('adds a member with an id of its own', () => {
+    const next = addMember(buildBoard(), 'Priya Raman');
+    expect(next.members).toHaveLength(1);
+    expect(next.members[0]?.name).toBe('Priya Raman');
+    expect(next.members[0]?.id).toBeTruthy();
+  });
+
+  it('renames one member and leaves the rest alone', () => {
+    const board = addMember(addMember(buildBoard(), 'Priya'), 'Marcus');
+    const first = board.members[0]?.id as string;
+
+    const next = renameMember(board, first, 'Priya Raman');
+    expect(next.members[0]?.name).toBe('Priya Raman');
+    expect(next.members[1]?.name).toBe('Marcus');
+  });
+
+  it('leaves nothing pointing at a removed member', () => {
+    const board = addMember(buildBoard(), 'Priya');
+    const memberId = board.members[0]?.id as string;
+    const assigned = {
+      ...board,
+      tickets: board.tickets.map((t) => (t.id === 'a' ? { ...t, assigneeId: memberId } : t)),
+      timeOff: [
+        {
+          id: 'p1',
+          type: 'pto' as const,
+          memberId,
+          startDate: '2026-01-06',
+          endDate: null,
+          label: 'Leave',
+        },
+        { id: 'h1', type: 'holiday' as const, startDate: '2026-01-01', endDate: null, label: 'NY' },
+      ],
+    };
+
+    const next = removeMember(assigned, memberId);
+    expect(next.members).toEqual([]);
+    expect(next.tickets.find((t) => t.id === 'a')?.assigneeId).toBeNull();
+    expect(next.timeOff.map((e) => e.id)).toEqual(['h1']);
+  });
+});
+
+describe('time off', () => {
+  it('adds an entry with an id and removes it again', () => {
+    const added = addTimeOff(buildBoard(), {
+      type: 'holiday',
+      startDate: '2026-01-01',
+      endDate: null,
+      label: 'New Year',
+    });
+    expect(added.timeOff).toHaveLength(1);
+
+    const id = added.timeOff[0]?.id as string;
+    expect(removeTimeOff(added, id).timeOff).toEqual([]);
+  });
+});
+
+describe('updateSettings', () => {
+  it('replaces the settings without touching anything else', () => {
+    const board = buildBoard();
+    const next = updateSettings(board, { daysPerPoint: 2, thresholds: { green: 8, yellow: 2 } });
+
+    expect(next.settings).toEqual({ daysPerPoint: 2, thresholds: { green: 8, yellow: 2 } });
+    expect(next.tickets).toEqual(board.tickets);
   });
 });

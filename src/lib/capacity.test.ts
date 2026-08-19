@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   balanceColor,
   calculateBandwidth,
+  calculateMemberLoad,
   calculatePointLoad,
   calculateSprintCapacity,
 } from './capacity';
+import type { MemberLoad } from './capacity';
 import { DEFAULT_SETTINGS } from '../model/types';
 import type { BoardSettings, Member, Sprint, Ticket, TimeOff } from '../model/types';
 
@@ -294,5 +296,41 @@ describe('calculateSprintCapacity', () => {
     );
     expect(result.balance).toBe(-5);
     expect(result.color).toBe('red');
+  });
+});
+
+describe('calculateMemberLoad', () => {
+  const tickets = [
+    ticket({ id: 't1', assigneeId: 'm1', points: 8, placement: { startSprintId: 's1', span: 1 } }),
+    ticket({ id: 't2', assigneeId: 'm1', points: 5, placement: { startSprintId: 's1', span: 1 } }),
+    ticket({ id: 't3', assigneeId: 'm2', points: 2, placement: { startSprintId: 's1', span: 1 } }),
+    ticket({ id: 't4', assigneeId: 'm1', points: 3, placement: { startSprintId: 's2', span: 1 } }),
+    ticket({ id: 't5', points: null, placement: { startSprintId: 's1', span: 1 } }),
+    ticket({ id: 't6', assigneeId: 'm1', points: 13 }),
+  ];
+
+  it('splits the sprint total across assignees', () => {
+    const load = calculateMemberLoad('s1', tickets);
+    expect(load.find((entry: MemberLoad) => entry.assigneeId === 'm1')?.committed).toBe(13);
+    expect(load.find((entry: MemberLoad) => entry.assigneeId === 'm2')?.committed).toBe(2);
+  });
+
+  it('counts unestimated work separately, under its assignee', () => {
+    const load = calculateMemberLoad('s1', tickets);
+    expect(load.find((entry: MemberLoad) => entry.assigneeId === null)).toEqual({
+      assigneeId: null,
+      committed: 0,
+      unestimated: 1,
+    });
+  });
+
+  it('ignores tickets that start elsewhere or are unplaced', () => {
+    expect(calculateMemberLoad('s2', tickets)).toEqual([
+      { assigneeId: 'm1', committed: 3, unestimated: 0 },
+    ]);
+  });
+
+  it('is empty for a sprint with nothing in it', () => {
+    expect(calculateMemberLoad('s3', tickets)).toEqual([]);
   });
 });

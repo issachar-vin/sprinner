@@ -13,8 +13,8 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { backlogTickets, ticketKeysById } from '../lib/board';
 import { todayISO } from '../lib/dates';
+import { dependentsOf, placementRejection, unplaceRejection } from '../lib/blockers';
 import {
-  dependentsOf,
   moveToBacklog as moveToBacklogIn,
   removalImpact,
   removeSprint as removeSprintFrom,
@@ -25,6 +25,7 @@ import type { Board } from '../model/types';
 import type { BoardActions } from './actions';
 import { assigneeHue, assigneeName } from './assignee';
 import { Backlog } from './Backlog';
+import { CapacityPanel } from './CapacityPanel';
 import { BoardView } from './BoardView';
 import { ConfirmDialog } from './ConfirmDialog';
 import { parseDropId } from './dropTarget';
@@ -39,6 +40,9 @@ import { FLIGHT_MS, useTicketFlight } from './useTicketFlight';
  * in step with the transitions on `.board-grid` in index.css.
  */
 export const SPRINT_DISSOLVE_MS = 320;
+
+/** How long a rejection stays on screen before it clears itself. */
+export const REJECTION_MS = 6000;
 
 function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -84,6 +88,12 @@ export function BoardWorkspace() {
   const removeSprint = useBoardStore((state) => state.removeSprint);
   const replaceSprints = useBoardStore((state) => state.replaceSprints);
   const reflowSprints = useBoardStore((state) => state.reflowSprints);
+  const addMember = useBoardStore((state) => state.addMember);
+  const renameMember = useBoardStore((state) => state.renameMember);
+  const removeMember = useBoardStore((state) => state.removeMember);
+  const addTimeOff = useBoardStore((state) => state.addTimeOff);
+  const removeTimeOff = useBoardStore((state) => state.removeTimeOff);
+  const updateSettings = useBoardStore((state) => state.updateSettings);
   const undo = useBoardStore((state) => state.undo);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -93,6 +103,8 @@ export function BoardWorkspace() {
   const [removingSprintId, setRemovingSprintId] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [showCapacity, setShowCapacity] = useState(false);
+  const [rejection, setRejection] = useState<string | null>(null);
   const { flights, lift, land } = useTicketFlight();
 
   const today = todayISO();
@@ -103,8 +115,27 @@ export function BoardWorkspace() {
     useSensor(KeyboardSensor),
   );
 
+  /**
+   * Rejections are shown, never swallowed: a drop that silently does nothing
+   * reads as a broken feature. Re-stating the same reason restarts its life,
+   * so repeating a refused move keeps the message on screen.
+   */
+  const reject = (reason: string) => setRejection(reason);
+
+  useEffect(() => {
+    if (rejection === null) return;
+    const timer = window.setTimeout(() => setRejection(null), REJECTION_MS);
+    return () => window.clearTimeout(timer);
+  }, [rejection]);
+
   /** One ticket, straight back to the backlog. */
   const flyToBacklog = (ticketId: string) => {
+    const refused = unplaceRejection(board, ticketId);
+    if (refused) {
+      reject(refused);
+      return;
+    }
+
     if (prefersReducedMotion()) {
       moveToBacklog(ticketId);
       return;
@@ -192,18 +223,34 @@ export function BoardWorkspace() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [undo]);
 
+  const resizeWithinBlockers = (ticketId: string, startSprintId: string, span: number) => {
+    const refused = placementRejection(board, ticketId, startSprintId, span);
+    if (refused) {
+      reject(refused);
+      return;
+    }
+    resizeTicket(ticketId, startSprintId, span);
+  };
+
   const actions: BoardActions = useMemo(
     () => ({
-      editTicket: setEditingTicketId,
+      editTicket: (ticketId: string) => {
+        setShowCapacity(false);
+        setEditingTicketId(ticketId);
+      },
       deleteTicket: setPendingDeleteId,
       unplaceTicket: flyToBacklog,
-      resizeTicket,
+      resizeTicket: resizeWithinBlockers,
       editSprint: setEditingSprintId,
       removeSprint: setRemovingSprintId,
       addSprint: () => addSprint(today),
       setUpSprints: () => setSettingUp(true),
+      openCapacity: () => {
+        setEditingTicketId(null);
+        setShowCapacity(true);
+      },
     }),
-    // `flyToBacklog` closes over the current board, which is what it measures.
+    // Both wrappers close over the current board, which is what they check.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [board, moveToBacklog, resizeTicket, addSprint, today],
   );
@@ -219,11 +266,18 @@ export function BoardWorkspace() {
 
     const ticketId = String(event.active.id);
     if (target.kind === 'backlog') {
-      moveToBacklog(ticketId);
+      const refused = unplaceRejection(board, ticketId);
+      if (refused) reject(refused);
+      else moveToBacklog(ticketId);
       return;
     }
 
     const span = board.tickets.find((ticket) => ticket.id === ticketId)?.placement?.span ?? 1;
+    const refused = placementRejection(board, ticketId, target.sprintId, span);
+    if (refused) {
+      reject(refused);
+      return;
+    }
     placeTicket(ticketId, target.sprintId, span, target.beforeTicketId);
   };
 
@@ -247,6 +301,15 @@ export function BoardWorkspace() {
       onDragEnd={onDragEnd}
       onDragCancel={() => setDraggingId(null)}
     >
+      {rejection && (
+        <div className="rejection" role="status">
+          <span>{rejection}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setRejection(null)}>
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="workspace">
         <Backlog
           tickets={backlogTickets(pending?.future ?? board)}
@@ -341,6 +404,20 @@ export function BoardWorkspace() {
             setRemovingSprintId(editingSprint.id);
           }}
           onClose={() => setEditingSprintId(null)}
+        />
+      )}
+
+      {showCapacity && (
+        <CapacityPanel
+          board={board}
+          today={today}
+          onAddMember={addMember}
+          onRenameMember={renameMember}
+          onRemoveMember={removeMember}
+          onAddTimeOff={addTimeOff}
+          onRemoveTimeOff={removeTimeOff}
+          onUpdateSettings={updateSettings}
+          onClose={() => setShowCapacity(false)}
         />
       )}
 
