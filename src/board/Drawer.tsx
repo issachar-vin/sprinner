@@ -21,6 +21,17 @@ export function Drawer({ title, onClose, children }: DrawerProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  /**
+   * The board makes room rather than sitting underneath: with the drawer
+   * overlaying it, the toolbar and the right-hand sprints were unreachable.
+   */
+  useEffect(() => {
+    document.body.dataset.drawer = 'open';
+    return () => {
+      delete document.body.dataset.drawer;
+    };
+  }, []);
+
   return (
     <aside className="drawer" role="dialog" aria-label={title}>
       <div className="drawer-head">

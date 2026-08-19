@@ -18,3 +18,13 @@ export function assigneeName(members: readonly Member[], assigneeId: string | nu
   if (assigneeId === null) return null;
   return members.find((member) => member.id === assigneeId)?.name ?? null;
 }
+
+/** Two letters at most, so a chip stays a chip. `?` stands in for unassigned. */
+export function initialsOf(name: string | null): string {
+  if (name === null) return '?';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0]?.[0] ?? '';
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? '') : '';
+  return (first + last).toUpperCase();
+}

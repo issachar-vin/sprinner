@@ -170,6 +170,11 @@ body {
   width: 100%;
   min-height: 100vh;
   padding: 2rem clamp(1rem, 3vw, 3rem);
+  transition: padding-right 220ms ease;
+}
+
+body[data-drawer='open'] .shell {
+  padding-right: calc(min(26rem, 94vw) + clamp(1rem, 3vw, 3rem));
 }
 
 .masthead {
@@ -389,7 +394,9 @@ button.secondary:hover {
 
 .board-toolbar {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
@@ -666,6 +673,83 @@ button.secondary:hover {
   color: var(--muted);
 }
 
+/* Per-member load ----------------------------------------------------------- */
+
+/*
+ * A team total of "+26 balance" can hide one member at twenty points and
+ * another at two, so each assignee's share is shown next to it, in the same hue
+ * their cards use.
+ */
+.member-load {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-load li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  background: hsl(var(--assignee-hue) var(--assignee-tint-s) var(--assignee-tint-l));
+  border: 1px solid hsl(var(--assignee-hue) var(--assignee-edge-s) var(--assignee-edge-l) / 0.45);
+  border-radius: 999px;
+}
+
+.member-load li[data-unassigned='true'] {
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.member-load-who {
+  font-weight: 700;
+}
+
+.member-load-open {
+  color: var(--muted);
+}
+
+/* Rejection ----------------------------------------------------------------- */
+
+/*
+ * Blocked-by moves are rejected rather than warned about, and every rejection
+ * says why — a drop that silently does nothing reads as a broken feature.
+ */
+.rejection {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border: 1px solid var(--bad-fg);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.2);
+  transform: translateX(-50%);
+  animation: drawer-in 160ms ease;
+}
+
+.rejection button {
+  padding: 0 0.25rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
 /* Ticket card --------------------------------------------------------------- */
 
 /* Free-form stretch while a resize is in flight; the snap happens on release. */
@@ -852,6 +936,321 @@ button.secondary:hover {
   border-radius: 0.25rem;
 }
 
+/* Panels inside a drawer ---------------------------------------------------- */
+
+.panel-section {
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.panel-section:first-of-type {
+  padding-top: 0;
+  border-top: none;
+}
+
+.panel-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.panel-count {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  color: var(--on-primary);
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.panel-section > .muted {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.panel-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.panel-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.panel-row--end {
+  justify-content: flex-end;
+}
+
+.panel-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Labels sit above their field: a drawer has no room for a label column. */
+.stacked-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.stacked-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.stacked-form label,
+.panel-form label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.drawer input,
+.drawer select,
+.stacked-form input,
+.stacked-form select,
+.panel-row input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+
+.drawer input:focus-visible,
+.drawer select:focus-visible {
+  border-color: var(--primary);
+}
+
+.icon-button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+}
+
+.icon-button--framed {
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.icon-button--framed:hover {
+  color: var(--primary);
+  background: var(--surface);
+  border-color: var(--primary);
+}
+
+/* Roster -------------------------------------------------------------------- */
+
+.roster,
+.timeoff {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roster li,
+.timeoff li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.roster-avatar {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: hsl(var(--assignee-hue) var(--assignee-tint-s) var(--assignee-tint-l));
+  border: 1px solid hsl(var(--assignee-hue) var(--assignee-edge-s) var(--assignee-edge-l) / 0.5);
+  border-radius: 999px;
+}
+
+.roster input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border-color: transparent;
+}
+
+.roster input:hover {
+  border-color: var(--border);
+}
+
+/* Time off ------------------------------------------------------------------ */
+
+.timeoff-badge {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 0.25rem;
+}
+
+.timeoff-badge[data-kind='holiday'] {
+  color: var(--on-highlight);
+  background: var(--highlight);
+}
+
+.timeoff-badge[data-kind='pto'] {
+  color: var(--on-primary);
+  background: var(--primary);
+}
+
+.timeoff-detail {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  font-size: 0.8125rem;
+}
+
+.timeoff-detail .muted {
+  font-size: 0.6875rem;
+}
+
+/* Blockers and the ticket picker -------------------------------------------- */
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.3rem 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+  border-radius: 999px;
+}
+
+.chip-list button {
+  display: grid;
+  place-items: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip-list button:hover {
+  background: color-mix(in srgb, var(--bad-fg) 20%, transparent);
+}
+
+.picker {
+  position: relative;
+  margin-top: 0.6rem;
+}
+
+.picker-list {
+  position: absolute;
+  z-index: 2;
+  width: 100%;
+  max-height: 12rem;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.18);
+}
+
+.picker-list button {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: var(--fg);
+  background: none;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+
+.picker-list button[data-active='true'] {
+  background: var(--surface-alt);
+}
+
+.picker-key {
+  flex: 0 0 auto;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.picker-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picker-empty {
+  padding: 0.4rem 0.45rem;
+  font-size: 0.8125rem;
+}
+
 /* Drawer -------------------------------------------------------------------- */
 
 @keyframes drawer-in {
@@ -874,8 +1273,8 @@ button.secondary:hover {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  width: min(24rem, 92vw);
-  padding: 1.25rem;
+  width: min(26rem, 94vw);
+  padding: 1.25rem 1.25rem 1.5rem;
   overflow-y: auto;
   color: var(--fg);
   background: var(--bg);
@@ -885,10 +1284,17 @@ button.secondary:hover {
 }
 
 .drawer-head {
+  position: sticky;
+  top: -1.25rem;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  margin: -1.25rem -1.25rem 0.25rem;
+  padding: 1.25rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .drawer-head h2 {
@@ -1027,12 +1433,14 @@ button.danger {
   .board-head,
   .board-cell,
   .board-cell .ticket,
+  .shell,
   body {
     transition: none;
   }
 
   .backlog-list li,
-  .drawer {
+  .drawer,
+  .rejection {
     animation: none;
   }
 

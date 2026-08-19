@@ -11,4 +11,5 @@ export type BoardActions = {
   removeSprint: (sprintId: string) => void;
   addSprint: () => void;
   setUpSprints: () => void;
+  openCapacity: () => void;
 };

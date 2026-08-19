@@ -121,6 +121,37 @@ export function calculatePointLoad(
   return { committed, creep, unestimated };
 }
 
+/** Points committed to each assignee in a sprint; null keys the unassigned. */
+export type MemberLoad = {
+  assigneeId: string | null;
+  committed: number;
+  unestimated: number;
+};
+
+/**
+ * A green team total hides one member at twenty points and another at two, so
+ * the same numbers are broken down per assignee. Only tickets that *start* in
+ * the sprint count, exactly as `calculatePointLoad` does.
+ */
+export function calculateMemberLoad(sprintId: string, tickets: readonly Ticket[]): MemberLoad[] {
+  const byAssignee = new Map<string | null, MemberLoad>();
+
+  for (const ticket of tickets) {
+    if (ticket.placement?.startSprintId !== sprintId) continue;
+
+    const load = byAssignee.get(ticket.assigneeId) ?? {
+      assigneeId: ticket.assigneeId,
+      committed: 0,
+      unestimated: 0,
+    };
+    if (ticket.points === null) load.unestimated += 1;
+    else load.committed += ticket.points;
+    byAssignee.set(ticket.assigneeId, load);
+  }
+
+  return [...byAssignee.values()];
+}
+
 export function balanceColor(balance: number, settings: BoardSettings): BalanceColor {
   if (balance > settings.thresholds.green) return 'green';
   if (balance >= settings.thresholds.yellow) return 'yellow';

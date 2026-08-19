@@ -1,6 +1,8 @@
-import type { SprintCapacity } from '../lib/capacity';
+import type { CSSProperties } from 'react';
+import type { MemberLoad, SprintCapacity } from '../lib/capacity';
 import { formatDayMonth } from '../lib/dates';
-import type { Sprint } from '../model/types';
+import type { Member, Sprint } from '../model/types';
+import { assigneeHue, initialsOf } from './assignee';
 import { TrashIcon } from './TrashIcon';
 
 type SprintHeaderProps = {
@@ -8,6 +10,9 @@ type SprintHeaderProps = {
   /** Derived from board position, never stored. */
   number: number;
   capacity: SprintCapacity;
+  /** Per assignee, so a healthy team total cannot hide one overloaded member. */
+  memberLoad: MemberLoad[];
+  members: Member[];
   isCurrent: boolean;
   onEdit: () => void;
   onRemove: () => void;
@@ -21,6 +26,8 @@ export function SprintHeader({
   sprint,
   number,
   capacity,
+  memberLoad,
+  members,
   isCurrent,
   onEdit,
   onRemove,
@@ -53,7 +60,7 @@ export function SprintHeader({
         <div>
           <dt>Committed</dt>
           <dd>
-            {formatPoints(capacity.committed)}
+            <span className="sprint-committed">{formatPoints(capacity.committed)}</span>
             {capacity.creep > 0 && (
               <span className="creep">(+{formatPoints(capacity.creep)} creep)</span>
             )}
@@ -64,6 +71,31 @@ export function SprintHeader({
           <dd>{formatPoints(capacity.bandwidthPoints)}</dd>
         </div>
       </dl>
+
+      {memberLoad.length > 0 && (
+        <ul className="member-load">
+          {memberLoad.map((load) => {
+            const member = members.find((entry) => entry.id === load.assigneeId) ?? null;
+            const hue = assigneeHue(members, load.assigneeId);
+            return (
+              <li
+                key={load.assigneeId ?? 'unassigned'}
+                style={{ '--assignee-hue': hue } as CSSProperties}
+                data-unassigned={hue === null}
+                title={`${member?.name ?? 'Unassigned'}: ${formatPoints(load.committed)} points${
+                  load.unestimated > 0 ? `, ${load.unestimated} unestimated` : ''
+                }`}
+              >
+                <span className="member-load-who">{initialsOf(member?.name ?? null)}</span>
+                {formatPoints(load.committed)}
+                {load.unestimated > 0 && (
+                  <span className="member-load-open">+{load.unestimated}</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       <div className="sprint-foot">
         <span className={`balance balance--${capacity.color}`}>

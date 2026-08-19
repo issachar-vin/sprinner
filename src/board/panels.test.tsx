@@ -13,6 +13,11 @@ function openTicket(key: string) {
   return screen.getByRole('dialog');
 }
 
+/** Scoped to the picker: native `select` options carry the same role. */
+function blockerOptions() {
+  return within(screen.getByRole('listbox', { name: 'Add a blocker' })).getAllByRole('option');
+}
+
 describe('ticket panel', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -65,11 +70,66 @@ describe('ticket panel', () => {
     // PLAT-108 is already blocked by PLAT-101, so blocking PLAT-101 on it loops.
     const dialog = openTicket('PLAT-101');
 
-    fireEvent.change(screen.getByLabelText('Blocked by'), { target: { value: 't-108' } });
+    fireEvent.focus(screen.getByLabelText('Add a blocker'));
+    fireEvent.click(
+      blockerOptions().find((option) => option.textContent?.includes('PLAT-108')) as HTMLElement,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(within(dialog).getByText(/would create a cycle/i)).toBeInTheDocument();
     expect(ticket('t-101')?.blockedBy).toEqual([]);
+  });
+
+  it('lists every other ticket before anything is typed', () => {
+    render(<BoardWorkspace />);
+    openTicket('PLAT-101');
+
+    fireEvent.focus(screen.getByLabelText('Add a blocker'));
+
+    // Every ticket except this one.
+    expect(blockerOptions()).toHaveLength(16);
+  });
+
+  it('filters the picker as you type, by key or title', () => {
+    render(<BoardWorkspace />);
+    openTicket('PLAT-101');
+    const input = screen.getByLabelText('Add a blocker');
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'audit' } });
+
+    const options = blockerOptions();
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent('PLAT-112');
+  });
+
+  it('adds a blocker from the picker and drops it again', () => {
+    render(<BoardWorkspace />);
+    openTicket('PLAT-133');
+    const input = screen.getByLabelText('Add a blocker');
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'PLAT-115' } });
+    fireEvent.click(blockerOptions()[0] as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(ticket('t-133')?.blockedBy).toEqual(['t-115']);
+
+    openTicket('PLAT-133');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove blocker PLAT-115' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(ticket('t-133')?.blockedBy).toEqual([]);
+  });
+
+  it('offers a blocker only once', () => {
+    render(<BoardWorkspace />);
+    openTicket('PLAT-108');
+
+    fireEvent.focus(screen.getByLabelText('Add a blocker'));
+
+    // PLAT-101 already blocks it, so it is not on offer again.
+    expect(blockerOptions().some((option) => option.textContent?.includes('PLAT-101'))).toBe(false);
   });
 
   it('rejects an empty key and unparseable points', () => {

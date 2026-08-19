@@ -3,12 +3,13 @@ import { useCallback, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import type { BoardRow } from '../lib/board';
 import { boardRows, sprintIndexForDate, ticketKeysById } from '../lib/board';
-import { calculateSprintCapacity } from '../lib/capacity';
+import { calculateMemberLoad, calculateSprintCapacity } from '../lib/capacity';
 import type { Board, ISODate } from '../model/types';
 import type { BoardActions } from './actions';
 import { assigneeHue, assigneeName } from './assignee';
 import { DraggableTicket } from './DraggableTicket';
 import { cellDropId } from './dropTarget';
+import { CogIcon } from './CogIcon';
 import { PencilIcon } from './PencilIcon';
 import { SprintHeader } from './SprintHeader';
 import { TrashIcon } from './TrashIcon';
@@ -76,6 +77,9 @@ export function BoardView({
         <button type="button" className="primary" onClick={actions.setUpSprints}>
           Set up sprints
         </button>
+        <button type="button" className="secondary" onClick={actions.openCapacity}>
+          Set up the team
+        </button>
       </section>
     );
   }
@@ -135,6 +139,14 @@ export function BoardView({
         <button type="button" className="secondary" onClick={actions.addSprint}>
           Add sprint
         </button>
+        <button
+          type="button"
+          className="icon-button icon-button--framed"
+          aria-label="Team and capacity"
+          onClick={actions.openCapacity}
+        >
+          <CogIcon />
+        </button>
       </div>
 
       <div className="board-scroll">
@@ -175,6 +187,8 @@ export function BoardView({
                   timeOff,
                   settings,
                 )}
+                memberLoad={calculateMemberLoad(sprint.id, tickets)}
+                members={members}
                 isCurrent={index === currentIndex}
               />
             </div>

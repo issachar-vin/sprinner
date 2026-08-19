@@ -62,6 +62,7 @@ const actions: BoardActions = {
   removeSprint: vi.fn(),
   addSprint: vi.fn(),
   setUpSprints: vi.fn(),
+  openCapacity: vi.fn(),
 };
 
 function renderBoard(board: Board, today = TODAY) {
@@ -106,7 +107,9 @@ describe('BoardView', () => {
 
     const second = screen.getByRole('heading', { name: 'Sprint 2' }).closest('.sprint-header');
     expect(second).not.toBeNull();
-    expect(within(second as HTMLElement).getByText('8')).toBeInTheDocument();
+    expect(
+      within(second as HTMLElement).getByText('8', { selector: '.sprint-committed' }),
+    ).toBeInTheDocument();
     expect(within(second as HTMLElement).getByText('(+3 creep)')).toBeInTheDocument();
     expect(within(second as HTMLElement).getByText('1 unestimated')).toBeInTheDocument();
   });

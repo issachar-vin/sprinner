@@ -28,22 +28,22 @@ describe('BoardWorkspace', () => {
   it('flies a ticket back to the backlog before unplacing it', async () => {
     render(<BoardWorkspace />);
 
-    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
+    fireEvent.click(screen.getByLabelText('Return PLAT-115 to the backlog'));
 
     // Mid-flight: still placed, a copy is travelling, and the backlog is
     // already holding its row open.
-    expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 1 });
+    expect(ticket('t-115')?.placement).toEqual({ startSprintId: 's3', span: 1 });
     expect(document.querySelectorAll('.ticket-flight')).toHaveLength(1);
     expect(document.querySelectorAll('.backlog-list li[data-flying="true"]')).toHaveLength(1);
     expect(document.querySelector('.board-cell[data-leaving="true"]')).toContainElement(
-      document.querySelector('.board-cell [data-ticket-id="t-101"]'),
+      document.querySelector('.board-cell [data-ticket-id="t-115"]'),
     );
 
-    await waitFor(() => expect(ticket('t-101')?.placement).toBeNull());
+    await waitFor(() => expect(ticket('t-115')?.placement).toBeNull());
     await waitFor(() => expect(document.querySelectorAll('.ticket-flight')).toHaveLength(0));
 
     const backlog = screen.getByRole('region', { name: 'Backlog' });
-    expect(within(backlog).getByText('Rewrite auth token refresh')).toBeInTheDocument();
+    expect(within(backlog).getByText('SSO metadata refresh job')).toBeInTheDocument();
   });
 
   it('unplaces at once when the viewer asks for reduced motion', () => {
@@ -57,20 +57,20 @@ describe('BoardWorkspace', () => {
     );
 
     render(<BoardWorkspace />);
-    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
+    fireEvent.click(screen.getByLabelText('Return PLAT-115 to the backlog'));
 
-    expect(ticket('t-101')?.placement).toBeNull();
+    expect(ticket('t-115')?.placement).toBeNull();
     vi.unstubAllGlobals();
   });
 
   it('undoes the last edit with the keyboard shortcut', async () => {
     render(<BoardWorkspace />);
 
-    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
-    await waitFor(() => expect(ticket('t-101')?.placement).toBeNull());
+    fireEvent.click(screen.getByLabelText('Return PLAT-115 to the backlog'));
+    await waitFor(() => expect(ticket('t-115')?.placement).toBeNull());
 
     fireEvent.keyDown(window, { key: 'z', metaKey: true });
-    expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 1 });
+    expect(ticket('t-115')?.placement).toEqual({ startSprintId: 's3', span: 1 });
   });
 
   it('confirms before deleting and names the dependents', () => {
@@ -128,12 +128,12 @@ describe('BoardWorkspace', () => {
     render(<BoardWorkspace />);
     stubColumnRects();
 
-    const handle = screen.getByTestId('resize-end-PLAT-101');
-    fireEvent.pointerDown(handle, { clientX: 50 });
-    fireEvent.pointerMove(window, { clientX: 250 });
-    fireEvent.pointerUp(window, { clientX: 250 });
+    const handle = screen.getByTestId('resize-end-PLAT-115');
+    fireEvent.pointerDown(handle, { clientX: 250 });
+    fireEvent.pointerMove(window, { clientX: 450 });
+    fireEvent.pointerUp(window, { clientX: 450 });
 
-    expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 3 });
+    expect(ticket('t-115')?.placement).toEqual({ startSprintId: 's3', span: 3 });
   });
 
   it('moves the start sprint when the left edge is dragged', () => {
@@ -158,5 +158,57 @@ describe('BoardWorkspace', () => {
     fireEvent.pointerUp(window, { clientX: 50 });
 
     expect(useBoardStore.getState().past).toEqual([]);
+  });
+});
+
+describe('blocked-by rules', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    act(() => useBoardStore.getState().replaceBoard(createDemoBoard('2026-08-14')));
+  });
+
+  it('refuses to unplace a blocker while a dependent is on the board', () => {
+    render(<BoardWorkspace />);
+
+    // PLAT-108 is placed and blocked by PLAT-101.
+    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
+
+    expect(ticket('t-101')?.placement).not.toBeNull();
+    expect(document.querySelector('.rejection')).toHaveTextContent(
+      'PLAT-108 depends on this and is still placed',
+    );
+  });
+
+  it('refuses to stretch a blocker over its dependent', () => {
+    render(<BoardWorkspace />);
+    stubColumnRects();
+
+    const handle = screen.getByTestId('resize-end-PLAT-101');
+    fireEvent.pointerDown(handle, { clientX: 50 });
+    fireEvent.pointerMove(window, { clientX: 250 });
+    fireEvent.pointerUp(window, { clientX: 250 });
+
+    expect(ticket('t-101')?.placement).toEqual({ startSprintId: 's1', span: 1 });
+    expect(document.querySelector('.rejection')).toHaveTextContent(
+      'PLAT-108 depends on this and starts in sprint 2',
+    );
+  });
+
+  it('lets a blocker move where no dependent is disturbed', () => {
+    render(<BoardWorkspace />);
+
+    // PLAT-124's only dependent, PLAT-158, is still in the backlog.
+    fireEvent.click(screen.getByLabelText('Return PLAT-124 to the backlog'));
+
+    expect(document.querySelector('.rejection')).toBeNull();
+  });
+
+  it('dismisses a rejection on request', () => {
+    render(<BoardWorkspace />);
+
+    fireEvent.click(screen.getByLabelText('Return PLAT-101 to the backlog'));
+    fireEvent.click(screen.getByLabelText('Dismiss'));
+
+    expect(document.querySelector('.rejection')).toBeNull();
   });
 });

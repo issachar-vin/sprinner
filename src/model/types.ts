@@ -63,6 +63,12 @@ export type Pto = {
  */
 export type TimeOff = Holiday | Pto;
 
+/**
+ * A time-off entry before it has an id. Spelled out per variant because
+ * `Omit<TimeOff, 'id'>` collapses the union and loses `memberId`.
+ */
+export type NewTimeOff = Omit<Holiday, 'id'> | Omit<Pto, 'id'>;
+
 export type BoardSettings = {
   /** Person-days one story point represents. */
   daysPerPoint: number;

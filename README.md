@@ -48,5 +48,5 @@ SPRINNER_VERSION=0.2.0 docker compose -f docker-compose.ghcr.yml up
 
 ## Stack
 
-Vite · React · TypeScript · CSS Grid for the board · Zustand + persist · zod for validation at the
-import/rehydrate boundary · Vitest.
+Vite · React · TypeScript · CSS Grid for the board · dnd-kit for drag, with custom pointer handlers
+for span resize · Zustand + persist · zod for validation at the import/rehydrate boundary · Vitest.

@@ -1,4 +1,5 @@
-import type { Board, ISODate, Sprint, Ticket } from '../model/types';
+import type { Board, BoardSettings, ISODate, NewTimeOff, Sprint, Ticket } from '../model/types';
+import { newId } from './id';
 import { nextSprint, reflowFrom } from './sprints';
 
 /**
@@ -76,11 +77,6 @@ export function clearPlacements(board: Board): Board {
       ticket.placement === null ? ticket : { ...ticket, placement: null },
     ),
   };
-}
-
-/** Tickets that list `ticketId` as a blocker. Named in the delete confirmation. */
-export function dependentsOf(board: Board, ticketId: string): Ticket[] {
-  return board.tickets.filter((ticket) => ticket.blockedBy.includes(ticketId));
 }
 
 /**
@@ -193,4 +189,43 @@ export function removeSprint(board: Board, sprintId: string): Board {
       return ticket;
     }),
   };
+}
+
+export function addMember(board: Board, name: string): Board {
+  return { ...board, members: [...board.members, { id: newId(), name }] };
+}
+
+export function renameMember(board: Board, memberId: string, name: string): Board {
+  return {
+    ...board,
+    members: board.members.map((member) => (member.id === memberId ? { ...member, name } : member)),
+  };
+}
+
+/**
+ * Removing someone leaves nothing pointing at them: their tickets go
+ * unassigned and their time off goes with them. Their capacity disappears from
+ * every sprint, which is the point of removing them.
+ */
+export function removeMember(board: Board, memberId: string): Board {
+  return {
+    ...board,
+    members: board.members.filter((member) => member.id !== memberId),
+    tickets: board.tickets.map((ticket) =>
+      ticket.assigneeId === memberId ? { ...ticket, assigneeId: null } : ticket,
+    ),
+    timeOff: board.timeOff.filter((entry) => entry.type !== 'pto' || entry.memberId !== memberId),
+  };
+}
+
+export function addTimeOff(board: Board, entry: NewTimeOff): Board {
+  return { ...board, timeOff: [...board.timeOff, { ...entry, id: newId() }] };
+}
+
+export function removeTimeOff(board: Board, entryId: string): Board {
+  return { ...board, timeOff: board.timeOff.filter((entry) => entry.id !== entryId) };
+}
+
+export function updateSettings(board: Board, settings: BoardSettings): Board {
+  return { ...board, settings };
 }

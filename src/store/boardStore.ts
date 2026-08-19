@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import * as mutations from '../lib/mutations';
 import { parseBoard } from '../model/schema';
 import { createEmptyBoard, SCHEMA_VERSION } from '../model/types';
-import type { Board, ISODate, Sprint } from '../model/types';
+import type { Board, BoardSettings, ISODate, NewTimeOff, Sprint } from '../model/types';
 import type { SprintEdit, TicketEdit } from '../lib/mutations';
 
 export const STORAGE_KEY = 'sprinner-board';
@@ -32,6 +32,12 @@ type BoardState = {
   removeSprint: (sprintId: string) => void;
   replaceSprints: (sprints: Sprint[]) => void;
   reflowSprints: (fromSprintId: string) => void;
+  addMember: (name: string) => void;
+  renameMember: (memberId: string, name: string) => void;
+  removeMember: (memberId: string) => void;
+  addTimeOff: (entry: NewTimeOff) => void;
+  removeTimeOff: (entryId: string) => void;
+  updateSettings: (settings: BoardSettings) => void;
   undo: () => void;
 };
 
@@ -72,6 +78,13 @@ export const useBoardStore = create<BoardState>()(
         replaceSprints: (sprints) => apply((board) => mutations.replaceSprints(board, sprints)),
         reflowSprints: (fromSprintId) =>
           apply((board) => mutations.reflowSprints(board, fromSprintId)),
+        addMember: (name) => apply((board) => mutations.addMember(board, name)),
+        renameMember: (memberId, name) =>
+          apply((board) => mutations.renameMember(board, memberId, name)),
+        removeMember: (memberId) => apply((board) => mutations.removeMember(board, memberId)),
+        addTimeOff: (entry) => apply((board) => mutations.addTimeOff(board, entry)),
+        removeTimeOff: (entryId) => apply((board) => mutations.removeTimeOff(board, entryId)),
+        updateSettings: (settings) => apply((board) => mutations.updateSettings(board, settings)),
         undo: () =>
           set((state) => {
             const [previous, ...rest] = state.past;
